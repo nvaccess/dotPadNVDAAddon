@@ -26,7 +26,6 @@ class DotPad320:
 		res = dotPadSdk.init(portNum)
 		if res != DotPadErrorCode.NONE:
 			raise DotPadError(res)
-		time.sleep(3)
 
 	def resetDataBuffer(self):
 		self._data = ctypes.c_buffer(self.cellCount)
