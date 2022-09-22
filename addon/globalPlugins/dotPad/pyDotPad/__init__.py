@@ -1,3 +1,8 @@
+# A part of the DotPad NVDA add-on.
+# Copyright (C) 2022 NV Access Limited.
+# this code is licensed under the GNU General Public License version 2.
+
+
 import sys
 import os
 import time
@@ -9,6 +14,7 @@ DotPadErrorCode = dotPadSdk.DotPadErrorCode
 class DotPadError(Exception):
 	def __init__(self, code: DotPadErrorCode):
 		self.code = code
+
 
 class DotPad320:
 
