@@ -137,7 +137,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		dp.resetDataBuffer()
 		for y in range(top, top+height):
 			for x in range(left, left + width):
-				isWhite = getMonochromePixelUsingLocalBrightnessThreshold(image, x, y)
+				isWhite = getMonochromePixelUsingLocalBrightnessThreshold(image, x, y, blur=3)
 				isRaised = isWhite if isWhiteOnBlack else not isWhite
 				if isRaised:
 					dp.setDotInDataBuffer(x, y)
