@@ -37,6 +37,8 @@ class DotPad320:
 		self._data = ctypes.c_buffer(self.cellCount)
 
 	def setDotInDataBuffer(self, x: int, y: int):
+		if x < 0 or x >= self.hPixelCount or y < 0 or y >= self.vPixelCount:
+			return
 		vCellIndex = int(y / self.cellHeight)
 		hCellIndex = int(x / self.cellWidth)
 		cellIndex = (vCellIndex * self.hCellCount) + hCellIndex
