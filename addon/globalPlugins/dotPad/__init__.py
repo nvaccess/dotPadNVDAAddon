@@ -3,6 +3,7 @@
 # this code is licensed under the GNU General Public License version 2.
 
 
+import math
 import ctypes
 import time
 import wx
@@ -19,6 +20,17 @@ from gui.settingsDialogs import SettingsDialog
 from gui import guiHelper
 import hwPortUtils
 from .imageUtils import StretchMode, captureImage, getMonochromePixelUsingLocalBrightnessThreshold
+from .dataUtils import (
+	transposeValuesInDataset,
+	scaleValuesInDataset,
+	flipValuesInDataset,
+	resizeDataset,
+	drawContinuousDataset,
+	drawDiscreteDataset,
+	drawViewport,
+	drawBrailleCells,
+)
+from .brailleUtils import translateTextToBraille
 
 
 class DotPadDialog(SettingsDialog):
@@ -69,6 +81,8 @@ class DotPadDialog(SettingsDialog):
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
+	curInstance = None
+
 	_configName = 'addon_dotPad'
 	_configSpec = {
 		'port': 'string(default="")',
@@ -78,6 +92,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		super().__init__()
 		config.conf.spec[self._configName] = self._configSpec
 		self._dp = None
+		self.__class__.curInstance = self
 
 	def terminateDotPad(self):
 		""" Turminates the DotPad connection if it exists."""
@@ -141,6 +156,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				isRaised = isWhite if isWhiteOnBlack else not isWhite
 				if isRaised:
 					dp.setDotInDataBuffer(x, y)
+		self._outputDataBuffer(dp)
+
+	def _outputDataBuffer(self, dp):
 		try:
 			dp.outputDataBuffer()
 		except DotPadError as e:
@@ -162,6 +180,35 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(gesture="kb:shift+NVDA+f8")
 	def script_shownavigatorObject_whiteOnBlack(self, gesture):
 		self.showNavigatorObject(isWhiteOnBlack=True)
+
+	@script(gesture="kb:shift+NVDA+f7")
+	def script_drawSineWave(self, gesture):
+		dp = self.ensureDotPad()
+		if not dp:
+			return
+		dp.resetDataBuffer()
+		x, y, width, height, xCount, yCount = drawViewport(dp.setDotInDataBuffer, 0, 0, dp.hPixelCount, dp.vPixelCount, -1, 1, xCount=10, lockAspect=False)
+		count = 100
+		points = [math.sin((math.pi*2)*(x/count)) for x in range(count)]
+		drawContinuousDataset(dp.setDotInDataBuffer, x, y, width, height, -1, 1.1, points)
+		self._outputDataBuffer(dp)
+
+	def drawChart(self,minY, maxY, points, yAxisLabel=None, xAxisLabel=None, xLabels=None, discrete=True): 
+		dp = self.ensureDotPad()
+		if not dp:
+			return
+		dp.resetDataBuffer()
+		x, y, width, height, xCount, yCount = drawViewport(dp.setDotInDataBuffer, 0, 0, dp.hPixelCount, dp.vPixelCount, minY, maxY, xCount=len(points), xLabels=xLabels)
+		drawDiscreteDataset(dp.setDotInDataBuffer, x, y, width, height, minY, maxY, points, space=2)
+		textList = []
+		if yAxisLabel:
+			textList.append(yAxisLabel)
+		if xAxisLabel:
+			textList.append(f"by {xAxisLabel}")
+		text = " ".join(textList)
+		brailleCells = translateTextToBraille(text)
+		drawBrailleCells(dp.setDotInDataBuffer, 0, dp.vPixelCount - 3, brailleCells)
+		self._outputDataBuffer(dp)
 
 	@script(gesture="kb:control+NVDA+f8")
 	def script_showSettings(self, gesture):
