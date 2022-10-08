@@ -120,10 +120,16 @@ def drawLine(func_drawDot, x: int, y: int, length: int, vertical=False):
 def generateYValueLabels(minY: float, maxY: float, yCount: int) -> List[str]:
 	yRange = maxY - minY
 	yStep = yRange / yCount
-	yLabels = [format(minY + (yStep * index),'g') for index in range(yCount)]
-	yLabels = [label.replace(".", "'") for label in yLabels]
+	yValues = [minY + (yStep * index) for index in range(yCount)]
+	# Calculate the maximum amount of decimal places needed
+	maxDecimalPlaces = max(0, max(format(x,'g')[::-1].find('.') for x in yValues))
+	formatSpec = f".{maxDecimalPlaces}f"
+	yLabels = [format(val,formatSpec) for val in yValues]
+	# Right-justify all the values
 	maxYLabelLen = max(len(label) for label in yLabels)
 	yLabels = [label.rjust(maxYLabelLen) for label in yLabels]
+	# Change the decimal point (dot) into a tick as that takes up less space in Braille 
+	yLabels = [label.replace(".", "'") for label in yLabels]
 	return yLabels
 
 def generateDefaultXLabels(count: int) -> List[str]:
