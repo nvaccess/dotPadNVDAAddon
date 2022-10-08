@@ -11,7 +11,7 @@ This add-on is licensed under the GNU General Public License version 2.
 * control+NVDA+f8: Open DotPad settings. Allows you to tell NVDA which COM port the DotPad is connected to.
 * NVDA+f8: Displays the black on white image at the NVDA navigator object.
 * shift+NvDA+f8: displays the white on black image at the NVDA navigator object.
-* NVDA+f7: when focused on a chart in Excel, displays the chart.
+* NVDA+f6: when focused on a chart in Excel, displays the chart.
 * shift+NVDA+f7: display example sine wave plot. 
 
 ## Tutorial
@@ -28,7 +28,7 @@ This add-on is licensed under the GNU General Public License version 2.
 11. Press shift+NVDA+f8 to display the icon on the DotPad. Note that we use shift+NVDA+f8 (white on black) here as most icons are generally light image/text on a dark background. After a few seconds you should be able to feel the icon on the DotPad.
 12. Press shift+NVDA+f7 to display the sample sine wave plot. You should feel a y axis on the left going up from -1 to 1, an x axis long the bottom from a to j, and of course the continuous path of one cycle of a sine wave in the plot area.
 13. Open Excel and focus a chart.
-14. Press NVDA+f7 to display the chart on the DotPad. You will see a y axis on the left going up from the chart's minimum to maximum value, 10 or so steps. The x axis should use the first letter of the chart's categories for each label (E.g. j for January, f for february), and the data will be shown either as a column chart (for discrete chart types like bar, pie etc) and as a continus path for continuous chart types (such as line chart).
+14. Press NVDA+f6 to display the chart on the DotPad. You will see a y axis on the left going up from the chart's minimum to maximum value, 10 or so steps. The x axis should use the first letter of the chart's categories for each label (E.g. j for January, f for february), and the data will be shown either as a column chart (for discrete chart types like bar, pie etc) and as a continus path for continuous chart types (such as line chart).
 
 ## Image processing details
 When the add-on captures a part of the screen, it resizes the image to fit on the DotPad, ensuring the aspect ratio of the original image is maintained.
