@@ -3,12 +3,15 @@
 # this code is licensed under the GNU General Public License version 2.
 
 from globalPlugins.dotPad import GlobalPlugin
+import winUser
 import api
-import UIAHandler
+import ui
 from logHandler import log
 import controlTypes
+from scriptHandler import script
 import NVDAObjects.window._msOfficeChart as msOfficeChart
 from NVDAObjects.window import Window
+from NVDAObjects.window.excel import Excel7Window
 
 
 try:
@@ -16,15 +19,25 @@ try:
 except ImportError:
 	import appModuleHandler as BaseAppModule
 
-class ChartEmbosser(Window):
+class AppModule(BaseAppModule.AppModule):
 
-	def script_embossChart(self,gesture):
-		focus=api.getFocusObject()
+	@script(gesture="kb:NVDA+f6")
+	def script_embossChart(self, gesture):
+		hwndFocus = winUser.getGUIThreadInfo(0).hwndFocus
+		if winUser.getClassName(hwndFocus) != 'EXCEL7':
+			ui.message("Not a sheet or chart")
+			return
+		excelWindow = Excel7Window(windowHandle=hwndFocus)
+		selection = excelWindow._getSelection()
+		if not isinstance(selection, (msOfficeChart.OfficeChartElementBase, msOfficeChart.OfficeChartElementList)):
+			ui.message("Cannot locate chart")
+			return
+		chart = selection.officeChartObject
 		valuesList=[]
-		discrete=focus.officeChartObject.chartType not in (msOfficeChart.xl3DLine, msOfficeChart.xlLine, msOfficeChart.xlLineMarkers, msOfficeChart.xlLineMarkersStacked, msOfficeChart.xlLineMarkersStacked100, msOfficeChart.xlLineStacked, msOfficeChart.xlLineStacked100)
-		sr=focus.officeChartObject.seriesCollection()
-		if isinstance(focus,msOfficeChart.OfficeChartElementSeries):
-			item = sr.item(focus.arg1)
+		discrete=chart.chartType not in (msOfficeChart.xl3DLine, msOfficeChart.xlLine, msOfficeChart.xlLineMarkers, msOfficeChart.xlLineMarkersStacked, msOfficeChart.xlLineMarkersStacked100, msOfficeChart.xlLineStacked, msOfficeChart.xlLineStacked100)
+		sr=chart.seriesCollection()
+		if isinstance(selection,msOfficeChart.OfficeChartElementSeries):
+			item = sr.item(selection.arg1)
 		else:
 			item = sr.item(1)
 		valuesList = list(item.values)
@@ -35,8 +48,8 @@ class ChartEmbosser(Window):
 		print(f"valueLabels {valueLabels}")
 		yAxisLabel = None
 		xAxisLabel = None
-		if focus.officeChartObject.HasAxis(msOfficeChart.xlValue):
-			yAxis=focus.officeChartObject.axes(msOfficeChart.xlValue)
+		if chart.HasAxis(msOfficeChart.xlValue):
+			yAxis=chart.axes(msOfficeChart.xlValue)
 			minY = yAxis.minimumScale
 			maxY = yAxis.maximumScale
 			if yAxis.HasTitle:
@@ -44,25 +57,8 @@ class ChartEmbosser(Window):
 		else:
 			minY = min(valuesList)
 			maxY = max(valuesList)
-		if focus.officeChartObject.HasAxis(msOfficeChart.xlCategory):
-			xAxis=focus.officeChartObject.axes(msOfficeChart.xlCategory)
+		if chart.HasAxis(msOfficeChart.xlCategory):
+			xAxis=chart.axes(msOfficeChart.xlCategory)
 			if xAxis.HasTitle:
 				xAxisLabel = xAxis.AxisTitle.Text
 		GlobalPlugin.curInstance.drawChart(minY, maxY, valuesList, xAxisLabel=xAxisLabel, yAxisLabel=yAxisLabel, xLabels=valueLabels, discrete=discrete)
-
-	__gestures={
-		"kb:NVDA+f6":"embossChart",
-	}
-
-class AppModule(BaseAppModule.AppModule):
-
-	def event_gainFocus(self, obj, nextHandler):
-		# There is a strange gainFocus on a dead object when moving around charts.
-		# Ignore it.
-		if not obj.role:
-			return
-		nextHandler()
-
-	def chooseNVDAObjectOverlayClasses(self,obj,clsList):
-		if isinstance(obj,msOfficeChart.OfficeChart) or isinstance(obj,msOfficeChart.OfficeChartElementBase):
-			clsList.insert(0,ChartEmbosser)
