@@ -7,7 +7,7 @@ import math
 import ctypes
 import time
 import wx
-from .pyDotPad import DotPad320, DotPadError, DotPadErrorCode
+from .pyDotPad import DotPad, DotPadError, DotPadErrorCode
 import core
 import globalPluginHandler
 import tones
@@ -67,8 +67,8 @@ class DotPadDialog(SettingsDialog):
 			port = self._possiblePorts[index].split(' ')[0]
 			try:
 				self._globalPlugin.initDotPad(port)
-			except DotPadError as e:
-				gui.messageBox(f"{e.code.name}", "Error")
+			except (DotPadError, RuntimeError) as e:
+				gui.messageBox(f"{e}", "Error")
 				self.portList.SetFocus()
 				return
 		else:
@@ -106,10 +106,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		portNum = int(port[3:])
 		if self._dp:
 			self.terminateDotPad()
-		self._dp = DotPad320(portNum)
+		self._dp = DotPad(portNum, self.dpCallback)
 		if wait:
 			time.sleep(3)
 		return self._dp
+
+	def dpCallback(self, keyCode):
+		# a semi-tone scale with the keys!
+		import tones; tones.beep(440 * (2 ** (keyCode / 12)),50)
 
 	def ensureDotPad(self):
 		"""
@@ -134,8 +138,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message("Initializing DotPad...")
 		try:
 			self.initDotPad(port, wait=True)
-		except DotPadError as e:
-			wx.CallAfter(gui.messageBox,f"{e.code.name}", "DotPad Error")
+		except (DotPadError, RuntimeError) as e:
+			wx.CallAfter(gui.messageBox,f"{e}", "DotPad Error")
 			return None
 		return self._dp
 
@@ -159,19 +163,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._outputDataBuffer(dp)
 
 	def _outputDataBuffer(self, dp):
+		tones.beep(440, 60)
 		try:
 			dp.outputDataBuffer()
 		except DotPadError as e:
+			if e.code == DotPadErrorCode.DISPLAY_DATA_UNCHANGED:
+				pass  # already displayed
 			if e.code == DotPadErrorCode.DISPLAY_IN_PROGRESS:
 				tones.beep(220,50)
 				ui.message("Dot pad busy")
-			else:
-				wx.CallAfter(gui.messageBox,f"{e.code.name}", "DotPad Error")
-			return
-		ui.message("Displaying on DotPad")
-		tones.beep(440, 50)
-		core.callLater(1000, tones.beep, 660, 50)
-		core.callLater(2000, tones.beep, 880, 50)
+				return
+		tones.beep(880, 60)
+		ui.message("Done")
+
+
 
 	@script(gesture="kb:NVDA+f8")
 	def script_shownavigatorObject_blackOnWhite(self, gesture):

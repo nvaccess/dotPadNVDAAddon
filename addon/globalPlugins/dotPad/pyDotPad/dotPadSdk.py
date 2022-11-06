@@ -1,6 +1,8 @@
 from enum import Enum
 import os
 import ctypes
+from .ctypesUtils import StringBuffer, ParamFlag, declareCFunction
+
 
 _dllPath = os.path.join(os.path.dirname(__file__), 'DotPadSDK.dll')
 _dll = ctypes.cdll.LoadLibrary(_dllPath)
@@ -33,21 +35,90 @@ class DotPadErrorCode(Enum):
 	DISPLAY_DATA_INVALIDE_FILE = 0X800000002
 	DISPLAY_DATA_INVALIDE_LENGTH = 0X80000003
 	DISPLAY_DATA_SYNC_DATA_FAIL = 0X80000004
-	INVALID_DEVICE = 0X80000005
-	MAX = 0X80000006
+	DISPLAY_DATA_UNCHANGED = 0X80000005
+	DISPLAY_DATA_RANGE_INVALID = 0X80000006
+	INVALID_DEVICE = 0X80000007
+	MAX = 0X80000008
 
-def init(portNum: int) -> DotPadErrorCode:
-	oldCwd = os.getcwd()
-	os.chdir(os.path.dirname(__file__))
-	try:
-		res = _dll.DOT_PAD_INIT(portNum)
-	finally:
-		os.chdir(oldCwd)
-	return DotPadErrorCode(res)
 
-def display_data(data: ctypes.c_buffer, dataLen: int) -> DotPadErrorCode:
-	res = _dll.DOT_PAD_DISPLAY_DATA(data, dataLen)
-	return DotPadErrorCode(res)
+KeyCallbackType = ctypes.WINFUNCTYPE(ctypes.c_voidp, ctypes.c_int)
+DisplayCallbackType = ctypes.WINFUNCTYPE(ctypes.c_voidp)
 
-def deinit() -> None:
-	_dll.DOT_PAD_DEINIT()
+
+DEVICE_NAME_LEN = 10
+FW_VERSION_LEN = 8
+HW_VERSION_LEN = 1
+
+
+class DOT_PAD_ERROR(ctypes.c_ulong):
+
+	@classmethod
+	def _errcheck(cls, res, func, args):
+		res = DotPadErrorCode(res.value)
+		if res != DotPadErrorCode.NONE:
+			raise DotPadError(res)
+		return args
+
+
+class DotPadError(Exception):
+
+	def __init__(self, code):
+		self.code = code
+
+	def __repr__(self):
+		return f"DotPadException({self.code.name})"
+
+
+init = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_INIT', (
+		(ctypes.c_int, ParamFlag.IN, 'portNum'),
+	)
+)
+
+
+getDeviceName = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_DEVICE_NAME', (
+		(StringBuffer(DEVICE_NAME_LEN), ParamFlag.OUT, 'deviceName'),
+	)
+)
+
+
+getHwVersion = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_HW_VERSION', (
+		(ctypes.POINTER(ctypes.c_ubyte), ParamFlag.OUT, 'hwVersion'),
+	)
+)
+
+
+getFwVersion = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_FW_VERSION', (
+		(StringBuffer(FW_VERSION_LEN), ParamFlag.OUT, 'fwVersion'),
+	)
+)
+
+
+displayData = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_DISPLAY_DATA', (
+		(ctypes.POINTER(ctypes.c_char), ParamFlag.IN, 'data'),
+		(ctypes.c_int, ParamFlag.IN, 'length'),
+	)
+)
+
+
+registerDisplayCallback = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_REGISTER_DISPLAY_CALLBACK', (
+		(DisplayCallbackType, ParamFlag.IN, 'callback'),
+	)
+)
+
+
+registerKeyCallback = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_REGISTER_KEY_CALLBACK', (
+		(KeyCallbackType, ParamFlag.IN, 'callback'),
+	)
+)
+
+
+deinit = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_DEINIT', ()
+)
