@@ -122,7 +122,9 @@ def generateYValueLabels(minY: float, maxY: float, yCount: int) -> List[str]:
 	yStep = yRange / yCount
 	yValues = [minY + (yStep * index) for index in range(yCount)]
 	# Calculate the maximum amount of decimal places needed
-	maxDecimalPlaces = max(0, max(format(x,'g')[::-1].find('.') for x in yValues))
+	maxDecimalPlaces = max(
+		len(format(x, 'g').partition('.')[2]) for x in yValues
+	)
 	formatSpec = f".{maxDecimalPlaces}f"
 	yLabels = [format(val,formatSpec) for val in yValues]
 	# Right-justify all the values
