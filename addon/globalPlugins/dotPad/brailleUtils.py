@@ -8,6 +8,7 @@ import louisHelper
 import brailleTables
 import config
 
+brailleCellWidth = 3
 
 dot1 = 1
 dot2 = 2

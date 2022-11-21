@@ -25,7 +25,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description": _("""A prototype to interface with the Dotpad tactile graphical display. """),
 	# version
-	"addon_version": "2022.3",
+	"addon_version": "2022.4",
 	# Author(s)
 	"addon_author": "Michael curran <mick@nvaccess.org>",
 	# URL for the add-on documentation support

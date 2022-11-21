@@ -42,10 +42,6 @@ class DotPad(Singleton):
 	cellHeight: int = 4
 	cellWidth: int = 2
 
-	deviceSizes = {
-		b'DotPad320A': (30,10, 20),
-	}
-
 	hCellCount: int 
 	vCellCount: int
 	bCellCount: int
@@ -71,30 +67,14 @@ class DotPad(Singleton):
 		finally:
 			os.chdir(oldCwd)
 		self._initialized = True
-		deviceName = self.deviceName
-		try:
-			self.hCellCount, self.vCellCount, self.bCellCount = self.deviceSizes[deviceName]
-		except KeyError:
-			raise RuntimeError(f"Unknown device {deviceName}")
+		self.hCellCount, self.vCellCount, self.bCellCount = dotPadSdk.getDisplayInfo()
 		self.hPixelCount = self.hCellCount * self.cellWidth
 		self.vPixelCount = self.vCellCount * self.cellHeight
 		self.resetDataBuffer()
 		if keyCallback is not None:
 			self._cKeyCallback = dotPadSdk.KeyCallbackType(keyCallback)
 			dotPadSdk.registerKeyCallback(self._cKeyCallback)
-		print(f"deviceName: {self.deviceName}, hwVersion: {self.hwVersion}, fwVersion: {self.fwVersion}")
-
-	@property
-	def deviceName(self):
-		return dotPadSdk.getDeviceName()
-
-	@property
-	def hwVersion(self):
-		return dotPadSdk.getHwVersion()
-
-	@property
-	def fwVersion(self):
-		return dotPadSdk.getFwVersion()
+		print(f"Initialized DotPad device with display  {self.hCellCount} cells by {self.vCellCount} cells, and {self.bCellCount} braille cells.") 
 
 	def resetDataBuffer(self):
 		self._data = ctypes.c_buffer(self.hCellCount * self.vCellCount)
@@ -108,10 +88,10 @@ class DotPad(Singleton):
 		bit = (y % self.cellHeight) + ((x % self.cellWidth) * self.cellHeight)
 		self._data[cellIndex] = ord(self._data[cellIndex]) | 2**bit
 
-	def outputDataBuffer(self) -> bool:
+	def outputDataBuffer(self, fullRefresh=False) -> bool:
 		self._displayDoneEvent.clear()
-		dotPadSdk.displayData(self._data, self.hCellCount * self.vCellCount)
-		self._displayDoneEvent.wait(5)
+		dotPadSdk.displayData(self._data, self.hCellCount * self.vCellCount, fullRefresh)
+		self._displayDoneEvent.wait(3)
 
 	def __del__(self):
 		if self._initialized:

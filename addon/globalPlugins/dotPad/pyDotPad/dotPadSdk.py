@@ -76,23 +76,18 @@ init = declareCFunction(
 )
 
 
+getDisplayInfo = declareCFunction(
+	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_DISPLAY_INFO', (
+		(ctypes.POINTER(ctypes.c_int), ParamFlag.OUT, 'displayWidth'),
+		(ctypes.POINTER(ctypes.c_int), ParamFlag.OUT, 'displayHeight'),
+		(ctypes.POINTER(ctypes.c_int), ParamFlag.OUT, 'brailleLength'),
+	)
+)
+
+
 getDeviceName = declareCFunction(
 	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_DEVICE_NAME', (
 		(StringBuffer(DEVICE_NAME_LEN), ParamFlag.OUT, 'deviceName'),
-	)
-)
-
-
-getHwVersion = declareCFunction(
-	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_HW_VERSION', (
-		(ctypes.POINTER(ctypes.c_ubyte), ParamFlag.OUT, 'hwVersion'),
-	)
-)
-
-
-getFwVersion = declareCFunction(
-	_dll, DOT_PAD_ERROR, 'DOT_PAD_GET_FW_VERSION', (
-		(StringBuffer(FW_VERSION_LEN), ParamFlag.OUT, 'fwVersion'),
 	)
 )
 
@@ -101,6 +96,7 @@ displayData = declareCFunction(
 	_dll, DOT_PAD_ERROR, 'DOT_PAD_DISPLAY_DATA', (
 		(ctypes.POINTER(ctypes.c_char), ParamFlag.IN, 'data'),
 		(ctypes.c_int, ParamFlag.IN, 'length'),
+		(ctypes.c_bool, ParamFlag.IN, 'refresh'),
 	)
 )
 

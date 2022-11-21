@@ -34,18 +34,11 @@ class AppModule(BaseAppModule.AppModule):
 			return
 		chart = selection.officeChartObject
 		valuesList=[]
-		discrete=chart.chartType not in (msOfficeChart.xl3DLine, msOfficeChart.xlLine, msOfficeChart.xlLineMarkers, msOfficeChart.xlLineMarkersStacked, msOfficeChart.xlLineMarkersStacked100, msOfficeChart.xlLineStacked, msOfficeChart.xlLineStacked100)
 		sr=chart.seriesCollection()
-		if isinstance(selection,msOfficeChart.OfficeChartElementSeries):
-			item = sr.item(selection.arg1)
-		else:
-			item = sr.item(1)
-		valuesList = list(item.values)
-		try:
-			valueLabels = list(item.xValues)
-		except:
-			valueLabels = None
-		print(f"valueLabels {valueLabels}")
+		seriesObjects = []
+		for index in range(1, sr.count + 1):
+			seriesObjects.append(sr.item(index))
+		datasets = {item.name: list(item.values) for item in seriesObjects}
 		yAxisLabel = None
 		xAxisLabel = None
 		if chart.HasAxis(msOfficeChart.xlValue):
@@ -55,10 +48,10 @@ class AppModule(BaseAppModule.AppModule):
 			if yAxis.HasTitle:
 				yAxisLabel = yAxis.AxisTitle.Text
 		else:
-			minY = min(valuesList)
-			maxY = max(valuesList)
+			minY = min(min(dataset) for dataset in datasets)
+			maxY = max(max(dataset) for dataset in datasets)
 		if chart.HasAxis(msOfficeChart.xlCategory):
 			xAxis=chart.axes(msOfficeChart.xlCategory)
 			if xAxis.HasTitle:
 				xAxisLabel = xAxis.AxisTitle.Text
-		GlobalPlugin.curInstance.drawChart(minY, maxY, valuesList, xAxisLabel=xAxisLabel, yAxisLabel=yAxisLabel, xLabels=valueLabels, discrete=discrete)
+		GlobalPlugin.curInstance.drawChart(minY, maxY, datasets, xAxisLabel=xAxisLabel, yAxisLabel=yAxisLabel)

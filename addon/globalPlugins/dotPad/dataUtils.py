@@ -4,10 +4,12 @@
 # this code is licensed under the GNU General Public License version 2.
 
 
-from typing import List, Optional
+from typing import List, Tuple, Optional, Dict
+import math
 from .brailleUtils import (
 	drawBrailleCells,
 	translateTextToBraille,
+	brailleCellWidth
 )
 
 
@@ -71,44 +73,46 @@ def drawContinuousDataset(func_drawDot, destX: int, destY: int, destWidth: int, 
 		func_drawDot(x, int(y))
 		lastY = y
 
-def drawDiscreteDataset(func_drawDot, destX: int, destY: int, destWidth: int, destHeight: int, minY: float, maxY: float, values: List[float], space: int=1):
+def drawDiscreteDataset(func_drawDot, destX: int, destY: int, destWidth: int, destHeight: int, minY: float, maxY: float, values: List[float], barWidth: int, colWidth: int):
 	yRange = (maxY - minY)
 	yScale = destHeight / yRange
 	transposeValuesInDataset(values, minY * -1)
 	scaleValuesInDataset(values, yScale)
 	flipValuesInDataset(values, destHeight)
-	colWidth = int(destWidth / len(values))
 	lastY = None
 	for index in range(len(values)):
 		x = destX + (index * colWidth)
-		y = int(values[index])
-		func_drawDot(x, y)
-		for subY in range(y + 1, destHeight):
-			drawLine(func_drawDot, x, subY, 2, vertical=False)
+		y = destY + int(values[index])
+		for subY in range(y, destHeight):
+			drawLine(func_drawDot, x, subY, barWidth, vertical=False)
 
-def drawHorizontalRuler(func_drawDot, x: int, y: int, labels: List[str], spacing: int):
+def drawHorizontalRuler(func_drawDot, x: int, y: int, colStartOffset: int, colEndOffset: int, spacing: int):
+	labels = generateAZColumnLabels(colStartOffset, colEndOffset)
 	deltaX = 0
 	deltaY = 0
 	drawLine(func_drawDot, x, y, (len(labels) * spacing) + 1, vertical=False)
+	deltaX +=2 
 	deltaY += 2
 	for label in labels:
 		cells = translateTextToBraille(label, brailleTable='en-us-comp8.ctb')
 		drawBrailleCells(func_drawDot, x + deltaX, y + deltaY, cells)
 		deltaX += spacing
+	return deltaX, deltaY + 3
 
-def drawVerticalRuler(func_drawDot, x: int, y: int, labels: List[str], spacing: int):
+def drawVerticalRuler(func_drawDot, x: int, y: int, minY: int, maxY: int, yCount: int, spacing: int=3):
+	labels = generateYValueLabels(minY, maxY, yCount)
 	deltaX = 0
 	deltaY = 0 
 	labels.reverse()
 	for label in labels:
 		cells = translateTextToBraille(label, brailleTable='en-us-comp8.ctb')
-		deltaX = max(deltaX, len(cells) *3)
-		drawBrailleCells(func_drawDot, x, y + deltaY, cells)
+		deltaX = max(deltaX, len(cells) * brailleCellWidth)
+		drawBrailleCells(func_drawDot, x, y + deltaY + 1, cells)
 		deltaY += spacing
 		func_drawDot(x + deltaX, (y + deltaY - 1))
 	deltaX += 1
 	drawLine(func_drawDot, x + deltaX, y, (len(labels) * spacing), vertical=True)
-	return deltaX + 1
+	return deltaX + 1, deltaY - 1
 
 def drawLine(func_drawDot, x: int, y: int, length: int, vertical=False):
 	for index in range(length):
@@ -125,6 +129,7 @@ def generateYValueLabels(minY: float, maxY: float, yCount: int) -> List[str]:
 	maxDecimalPlaces = max(
 		len(format(x, 'g').partition('.')[2]) for x in yValues
 	)
+	maxDecimalPlaces = min(maxDecimalPlaces, 1)
 	formatSpec = f".{maxDecimalPlaces}f"
 	yLabels = [format(val,formatSpec) for val in yValues]
 	# Right-justify all the values
@@ -134,60 +139,210 @@ def generateYValueLabels(minY: float, maxY: float, yCount: int) -> List[str]:
 	yLabels = [label.replace(".", "'") for label in yLabels]
 	return yLabels
 
-def generateDefaultXLabels(count: int) -> List[str]:
-	return [chr(x + 97) for x in range(count)]
+def generateAZColumnLabel(colNum: int):
+	charList = []
+	while True:
+		div, remainder = divmod(colNum, 26)
+		ch = chr(97 + remainder)
+		charList.insert(0, ch)
+		if div == 0: 
+			break
+		colNum = div - 1
+	return "".join(charList)
 
-def drawViewport(func_drawDot, x: int, y: int, width: int, height: int, minY: float, maxY: float, xCount: int=0, xLabels: Optional[List[str]]=None, yCount: int=0, lockAspect=False, left=True, bottom=True, hGridlines=False, vGridlines=False):
-	if xLabels:
-		if not xCount:
-			xCount = len(xLabels)
-		elif len(xLabels) != xCount:
-			raise ValueError("xLabels length is not xCount")
-	x += 1
-	innerX = x
-	innerY = y
-	innerWidth = width
-	innerHeight = height
-	innerWidth -= 1
-	if bottom:
-		innerHeight -= 5
-	vSpacing = 3
-	maxYCount = 10
-	if yCount is 0:
-		yCount = maxYCount
-	else:
-		yCount = min(yCount, maxYCount)
-		vSpacing = int(innerHeight / yCount)
-		assert vSpacing >= 3
-	if left:
-		yLabels = generateYValueLabels(minY, maxY, yCount)
-		rulerWidth = drawVerticalRuler(func_drawDot, x, innerY, yLabels, vSpacing)
-		innerX += rulerWidth
-		innerWidth -= rulerWidth
-	hSpacing = 3
-	maxXCount = int(innerWidth / hSpacing)
-	if xCount is 0:
-		xCount = maxXCount
-	else:
-		xCount = min(xCount, maxXCount)
-		hSpacing = int(innerWidth / xCount)
-		assert hSpacing >= 3
-	innerWidth -= innerWidth % xCount
-	innerHeight -= innerHeight % yCount
-	if lockAspect:
-		hSpacing = vSpacing
-		innerWidth = xCount * hSpacing
-	if bottom:
-		if xLabels:
-			# We can only show the first letter
-			xLabels = [label[0].lower() for label in xLabels]
+def generateAZColumnLabels(start: int, end: int) -> List[str]:
+	return [generateAZColumnLabel(x) for x in range(start, end)]
+
+
+class DotBuffer:
+
+	width: int
+	height: int
+	dots: List[Tuple[int,int]]
+
+	def __init__(self):
+		self.dots = []
+		self.width = 0
+		self.height = 0
+
+	def setDot(self, x, y):
+		self.dots.append((x, y))
+		if self.width <= x:
+			self.width = x + 1
+		if self.height <= y:
+			self.height = y + 1
+
+	def draw(self, func_drawDot):
+		for x, y in self.dots:
+			func_drawDot(x, y)
+
+
+class cached_property(property):
+
+	def __get__(self, inst, owner):
+		name = self.fget.__name__
+		if name in inst.__dict__:
+			return inst.__dict__[name]
+		val = super().__get__(inst, owner)
+		inst.__dict__[name] = val
+		return val
+
+
+class Chart:
+
+	rowHeight = 4
+	minColWidth = 4
+	colStartOffset = 0
+
+	@cached_property
+	def numTotalCols(self):
+		return len(list(self.datasets.values())[0])
+
+	@cached_property
+	def colEndOffset(self):
+		return self.numTotalCols
+
+	@cached_property
+	def plotHeight(self):
+		if self.showHorizontalRuler:
+			return self.destHeight - self.rowHeight
 		else:
-			xLabels = generateDefaultXLabels(xCount)
-		drawHorizontalRuler(func_drawDot, innerX, (innerY + innerHeight) - 1, xLabels, hSpacing)
-	if vGridlines:
-		for deltaX in range(1, xCount + 1):
-			drawLine(func_drawDot, innerX + (deltaX * hSpacing) - 1, innerY, innerHeight, vertical=True)
-	if hGridlines:
-		for deltaY in range(1, yCount):
-			drawLine(func_drawDot, innerX, (innerY + (deltaY * vSpacing)) - 1, innerWidth + 2, vertical=False)
-	return (innerX, innerY, innerWidth, innerHeight, xCount, yCount)
+			return self.destHeight
+
+	plotY = 0
+
+	@cached_property
+	def plotX(self):
+		if self.showVerticalRuler:
+			return self.verticalRuler.width
+		else:
+			return 0
+
+	@cached_property
+	def plotWidth(self):
+		return self.destWidth - self.plotX
+
+	@cached_property
+	def colWidth(self):
+		numDatasets = len(self.datasets)
+		minColWidth = self.minColWidth
+		totalPlotWidth = minColWidth * self.numTotalCols
+		if totalPlotWidth < self.plotWidth:
+			colWidth = self.plotWidth // self.numTotalCols
+		else:
+			colWidth = minColWidth
+		return colWidth
+
+	@cached_property
+	def valStep(self):
+		return self.plotHeight // self.rowHeight
+
+	@cached_property
+	def normalizedMinVal(self):
+		return self.minVal
+
+	@cached_property
+	def normalizedMaxVal(self):
+		# if not already, increases maxVal until the range is a multiple of valStep
+		valRange = self.maxVal - self.minVal
+		valStep = self.valStep
+		valRangeModStep = valRange % valStep
+		if valRangeModStep > 0:
+			valRange += (valStep - (valRangeModStep))
+			maxVal = self.minVal + valRange
+			return maxVal
+		return self.maxVal
+
+	def __init__(self, destWidth: int, destHeight: int, minVal: float, maxVal: float, datasets: Dict[str,List[float]], showVerticalRuler=True, showHorizontalRuler=True):
+		self.showVerticalRuler = showVerticalRuler
+		self.showHorizontalRuler = showHorizontalRuler
+		self.datasets = datasets
+		self.destWidth = destWidth
+		self.destHeight = destHeight
+		self.minVal = minVal
+		self.maxVal = maxVal
+
+	@cached_property
+	def verticalRuler(self):
+		ruler = DotBuffer()
+		ruler.width, ruler.height = drawVerticalRuler(ruler.setDot, 0, 0, self.normalizedMinVal, self.normalizedMaxVal, self.valStep, self.rowHeight)
+		return ruler
+
+	def draw(self, func_drawDot):
+		if self.showVerticalRuler:
+			self.verticalRuler.draw(func_drawDot)
+		if self.showHorizontalRuler:
+			drawHorizontalRuler(func_drawDot, self.plotX, (self.plotY + self.plotHeight) - 1, self.colStartOffset, self.colEndOffset, self.colWidth)
+		self.drawPlot(func_drawDot)
+
+
+class ScrollableChart(Chart):
+
+	@cached_property
+	def minColWidth(self):
+		minColWidth = super().minColWidth
+		if self.showHorizontalRuler:
+			largestLabel = generateAZColumnLabel(self.numTotalCols - 1)
+			labelColWidth = (len(largestLabel) * brailleCellWidth) + len(largestLabel)
+			minColWidth = max(minColWidth, labelColWidth)
+		return minColWidth
+
+	@cached_property
+	def maxVisibleCols(self):
+		return self.plotWidth // self.colWidth
+
+	@property
+	def colEndOffset(self):
+		return min(self.colStartOffset + self.maxVisibleCols, self.numTotalCols)
+
+	def scrollForward(self):
+		if self.colEndOffset == self.numTotalCols:
+			return False
+		for x in range(self.maxVisibleCols):
+			self.colStartOffset += 1
+			if self.colEndOffset == self.numTotalCols:
+				break
+		return True
+
+	def scrollBack(self):
+		if self.colStartOffset == 0:
+			return False
+		for x in range(self.maxVisibleCols):
+			self.colStartOffset -= 1
+			if self.colStartOffset == 0:
+				break
+		return True
+
+
+class BarChart(ScrollableChart):
+
+	barWidth = 2
+	barGap = 1
+
+	@cached_property
+	def colGap(self):
+		numDatasets = len(self.datasets)
+		if numDatasets > 1:
+			return 2
+		else:
+			return 1
+
+	@cached_property
+	def minColWidth(self):
+		numDatasets = len(self.datasets)
+		minColWidth = super().minColWidth
+		minColWidthWithBars = ((self.barWidth + self.barGap) * numDatasets) + self.colGap
+		minColWidth = max(minColWidth, minColWidthWithBars)
+		return minColWidth
+
+	def drawPlot(self, func_drawDot):
+		for index, dataset in enumerate(self.datasets.values()):
+			xOffset = 2 + (self.barWidth + self.barGap) * index
+			drawDiscreteDataset(func_drawDot, self.plotX + xOffset, self.plotY, self.plotWidth, self.plotHeight, self.normalizedMinVal, self.normalizedMaxVal, dataset[self.colStartOffset:self.colEndOffset], self.barWidth, self.colWidth)
+
+
+class LineChart(Chart):
+
+	def drawPlot(self, func_drawDot):
+		for index, dataset in enumerate(self.datasets.values()):
+			drawContinuousDataset(func_drawDot, self.plotX, self.plotY, self.plotWidth, self.plotHeight, self.normalizedMinVal, self.normalizedMaxVal, dataset)
